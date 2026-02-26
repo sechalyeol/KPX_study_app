@@ -363,7 +363,7 @@ function termCard(k,v,open){
   </div>
   <div class="tc-short">${esc(v.s)}</div>
   ${open?`<div class="tc-detail">${linkTerms(v.f)}</div>
-  ${v.r&&v.r.length?`<div class="tc-refs"><span style="font-size:10px;color:var(--tm)">연관:</span>${v.r.map(r=>`<span class="tc-ref" onclick="event.stopPropagation();go({v:'glossary',sq:'${esc(r)}',gf:'all',df:0})">${esc(r)}</span>`).join("")}</div>`:""}`:""}
+  ${v.r&&v.r.length?`<div class="tc-refs"><span style="font-size:10px;color:var(--tm)">연관:</span>${v.r.map(r=>`<span class="tc-ref" onclick="event.stopPropagation();showTip('${esc(r)}')">${esc(r)}</span>`).join("")}</div>`:""}`:""}
   </div>`;
 }
 
