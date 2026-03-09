@@ -532,8 +532,8 @@ const CHART_DEFS={
   label:"수요곡선 (Demand Curve)",
   build(ctx){
     return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6","7","8"],datasets:[
-      {label:"수요곡선 D",data:[null,800,700,600,500,400,300,200,100],borderColor:"#2563EB",backgroundColor:"rgba(37,99,235,0.08)",fill:true,tension:0.3,pointRadius:3,borderWidth:2.5},
-      {label:"수요곡선 이동 D′",data:[null,950,850,750,650,550,450,350,250],borderColor:"#2563EB",borderDash:[6,4],backgroundColor:"transparent",fill:false,tension:0.3,pointRadius:0,borderWidth:1.5}
+      {label:"수요곡선 D",data:[null,900,750,600,500,430,380,350,330],borderColor:"#2563EB",backgroundColor:"rgba(37,99,235,0.08)",fill:true,tension:0.4,pointRadius:3,borderWidth:2.5},
+      {label:"수요곡선 이동 D′",data:[null,1050,900,750,650,580,530,500,480],borderColor:"#2563EB",borderDash:[6,4],backgroundColor:"transparent",fill:false,tension:0.4,pointRadius:0,borderWidth:1.5}
     ]},options:chartOpts("수량 (Q)","가격 (P)","가격↑ → 수요량↓ (우하향)\n점선: 소득↑ 등으로 수요곡선 우측 이동")});
   }
 },
@@ -541,8 +541,8 @@ const CHART_DEFS={
   label:"공급곡선 (Supply Curve)",
   build(ctx){
     return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6","7","8"],datasets:[
-      {label:"공급곡선 S",data:[null,100,200,300,400,500,600,700,800],borderColor:"#0D7C5F",backgroundColor:"rgba(13,124,95,0.08)",fill:true,tension:0.3,pointRadius:3,borderWidth:2.5},
-      {label:"공급곡선 이동 S′",data:[null,50,150,250,350,450,550,650,750],borderColor:"#0D7C5F",borderDash:[6,4],backgroundColor:"transparent",fill:false,tension:0.3,pointRadius:0,borderWidth:1.5}
+      {label:"공급곡선 S",data:[null,80,150,240,340,430,550,700,880],borderColor:"#0D7C5F",backgroundColor:"rgba(13,124,95,0.08)",fill:true,tension:0.4,pointRadius:3,borderWidth:2.5},
+      {label:"공급곡선 이동 S′",data:[null,40,100,180,280,370,490,640,820],borderColor:"#0D7C5F",borderDash:[6,4],backgroundColor:"transparent",fill:false,tension:0.4,pointRadius:0,borderWidth:1.5}
     ]},options:chartOpts("수량 (Q)","가격 (P)","가격↑ → 공급량↑ (우상향)\n점선: 기술 발전 등으로 공급곡선 우측 이동")});
   }
 },
@@ -550,19 +550,19 @@ const CHART_DEFS={
   label:"시장균형 (Market Equilibrium)",
   build(ctx){
     return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6","7","8"],datasets:[
-      {label:"수요곡선 D",data:[null,800,700,600,500,400,300,200,100],borderColor:"#2563EB",tension:0.3,pointRadius:2,borderWidth:2.5,fill:false},
-      {label:"공급곡선 S",data:[null,100,200,300,400,500,600,700,800],borderColor:"#0D7C5F",tension:0.3,pointRadius:2,borderWidth:2.5,fill:false},
-      {label:"균형점 E",data:[null,null,null,null,450,null,null,null,null],borderColor:"#C0392B",backgroundColor:"#C0392B",pointRadius:8,pointStyle:"circle",showLine:false,borderWidth:0}
-    ]},options:chartOpts("수량 (Q)","가격 (P)","균형점 E: 수요곡선과 공급곡선의 교차\n균형가격(P*)에서 수요량 = 공급량")});
+      {label:"수요곡선 D",data:[null,900,750,600,500,430,380,350,330],borderColor:"#2563EB",tension:0.4,pointRadius:2,borderWidth:2.5,fill:false},
+      {label:"공급곡선 S",data:[null,80,150,240,340,430,550,700,880],borderColor:"#0D7C5F",tension:0.4,pointRadius:2,borderWidth:2.5,fill:false},
+      {label:"균형점 E",data:[null,null,null,null,null,430,null,null,null],borderColor:"#C0392B",backgroundColor:"#C0392B",pointRadius:8,pointStyle:"circle",showLine:false,borderWidth:0}
+    ]},options:chartOpts("수량 (Q)","가격 (P)","균형점 E: 수요곡선과 공급곡선의 교차\n균형가격(P*=430)에서 수요량 = 공급량 (Q*=5)")});
   }
 },
 "소비자잉여":{
   label:"소비자잉여와 생산자잉여",
   build(ctx){
     return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6","7","8"],datasets:[
-      {label:"수요곡선 D",data:[null,800,700,600,500,400,300,200,100],borderColor:"#2563EB",tension:0.3,pointRadius:2,borderWidth:2.5,fill:{target:{value:450},above:"rgba(37,99,235,0.15)",below:"transparent"}},
-      {label:"공급곡선 S",data:[null,100,200,300,400,500,600,700,800],borderColor:"#0D7C5F",tension:0.3,pointRadius:2,borderWidth:2.5,fill:{target:{value:450},below:"rgba(13,124,95,0.15)",above:"transparent"}},
-      {label:"균형가격 P*",data:[450,450,450,450,450,450,450,450,450],borderColor:"#B8860B",borderDash:[4,4],pointRadius:0,borderWidth:1.5,fill:false}
+      {label:"수요곡선 D",data:[null,900,750,600,500,430,380,350,330],borderColor:"#2563EB",tension:0.4,pointRadius:2,borderWidth:2.5,fill:{target:{value:430},above:"rgba(37,99,235,0.15)",below:"transparent"}},
+      {label:"공급곡선 S",data:[null,80,150,240,340,430,550,700,880],borderColor:"#0D7C5F",tension:0.4,pointRadius:2,borderWidth:2.5,fill:{target:{value:430},below:"rgba(13,124,95,0.15)",above:"transparent"}},
+      {label:"균형가격 P*",data:[430,430,430,430,430,430,430,430,430],borderColor:"#B8860B",borderDash:[4,4],pointRadius:0,borderWidth:1.5,fill:false}
     ]},options:chartOpts("수량 (Q)","가격 (P)","파란 영역: 소비자잉여 (지불용의 - 실제지불)\n녹색 영역: 생산자잉여 (실제수입 - 생산비용)")});
   }
 },
