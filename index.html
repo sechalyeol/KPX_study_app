@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>전력거래사 학습 도우미</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -124,6 +125,10 @@ input{font-family:inherit;-webkit-appearance:none}
 .tt-goto:hover{background:rgba(184,134,11,0.14)}
 .tt-overlay{position:fixed;inset:0;z-index:99;background:rgba(62,47,28,.18)}
 .safe-bottom{padding-bottom:env(safe-area-inset-bottom,0)}
+
+.chart-wrap{margin:14px 0 6px;padding:12px;background:var(--cb);border:1px solid var(--b);border-radius:12px}
+.chart-wrap canvas{width:100%!important;max-height:280px}
+.chart-label{font-size:10px;color:var(--tm);text-align:center;margin-top:6px;font-weight:500}
 </style>
 </head>
 <body>
@@ -520,7 +525,175 @@ quiz:null,qLoad:false,qErr:null,qa:{},qSub:false,qCnt:5,qDiff:1,qScore:null,apiS
 let _apiKey="";
 try{_apiKey=localStorage.getItem("kpx_api_key")||"";}catch(e){_apiKey="";}
 
-function go(upd){Object.assign(S,upd);render();}
+// ── 차트 시각화 정의 ──
+const _charts={};
+const CHART_DEFS={
+"수요곡선":{
+  label:"수요곡선 (Demand Curve)",
+  build(ctx){
+    return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6","7","8"],datasets:[
+      {label:"수요곡선 D",data:[null,800,700,600,500,400,300,200,100],borderColor:"#2563EB",backgroundColor:"rgba(37,99,235,0.08)",fill:true,tension:0.3,pointRadius:3,borderWidth:2.5},
+      {label:"수요곡선 이동 D′",data:[null,950,850,750,650,550,450,350,250],borderColor:"#2563EB",borderDash:[6,4],backgroundColor:"transparent",fill:false,tension:0.3,pointRadius:0,borderWidth:1.5}
+    ]},options:chartOpts("수량 (Q)","가격 (P)","가격↑ → 수요량↓ (우하향)\n점선: 소득↑ 등으로 수요곡선 우측 이동")});
+  }
+},
+"공급곡선":{
+  label:"공급곡선 (Supply Curve)",
+  build(ctx){
+    return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6","7","8"],datasets:[
+      {label:"공급곡선 S",data:[null,100,200,300,400,500,600,700,800],borderColor:"#0D7C5F",backgroundColor:"rgba(13,124,95,0.08)",fill:true,tension:0.3,pointRadius:3,borderWidth:2.5},
+      {label:"공급곡선 이동 S′",data:[null,50,150,250,350,450,550,650,750],borderColor:"#0D7C5F",borderDash:[6,4],backgroundColor:"transparent",fill:false,tension:0.3,pointRadius:0,borderWidth:1.5}
+    ]},options:chartOpts("수량 (Q)","가격 (P)","가격↑ → 공급량↑ (우상향)\n점선: 기술 발전 등으로 공급곡선 우측 이동")});
+  }
+},
+"시장균형":{
+  label:"시장균형 (Market Equilibrium)",
+  build(ctx){
+    return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6","7","8"],datasets:[
+      {label:"수요곡선 D",data:[null,800,700,600,500,400,300,200,100],borderColor:"#2563EB",tension:0.3,pointRadius:2,borderWidth:2.5,fill:false},
+      {label:"공급곡선 S",data:[null,100,200,300,400,500,600,700,800],borderColor:"#0D7C5F",tension:0.3,pointRadius:2,borderWidth:2.5,fill:false},
+      {label:"균형점 E",data:[null,null,null,null,450,null,null,null,null],borderColor:"#C0392B",backgroundColor:"#C0392B",pointRadius:8,pointStyle:"circle",showLine:false,borderWidth:0}
+    ]},options:chartOpts("수량 (Q)","가격 (P)","균형점 E: 수요곡선과 공급곡선의 교차\n균형가격(P*)에서 수요량 = 공급량")});
+  }
+},
+"소비자잉여":{
+  label:"소비자잉여와 생산자잉여",
+  build(ctx){
+    return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6","7","8"],datasets:[
+      {label:"수요곡선 D",data:[null,800,700,600,500,400,300,200,100],borderColor:"#2563EB",tension:0.3,pointRadius:2,borderWidth:2.5,fill:{target:{value:450},above:"rgba(37,99,235,0.15)",below:"transparent"}},
+      {label:"공급곡선 S",data:[null,100,200,300,400,500,600,700,800],borderColor:"#0D7C5F",tension:0.3,pointRadius:2,borderWidth:2.5,fill:{target:{value:450},below:"rgba(13,124,95,0.15)",above:"transparent"}},
+      {label:"균형가격 P*",data:[450,450,450,450,450,450,450,450,450],borderColor:"#B8860B",borderDash:[4,4],pointRadius:0,borderWidth:1.5,fill:false}
+    ]},options:chartOpts("수량 (Q)","가격 (P)","파란 영역: 소비자잉여 (지불용의 - 실제지불)\n녹색 영역: 생산자잉여 (실제수입 - 생산비용)")});
+  }
+},
+"가격탄력성":{
+  label:"수요의 가격탄력성 비교",
+  build(ctx){
+    return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6"],datasets:[
+      {label:"완전 비탄력적 (ε=0)",data:[null,500,500,500,500,500,500],borderColor:"#C0392B",borderWidth:2,pointRadius:0,tension:0},
+      {label:"비탄력적 (ε<1, 필수품)",data:[null,800,700,600,500,450,420],borderColor:"#B8860B",borderWidth:2,pointRadius:0,tension:0.3},
+      {label:"탄력적 (ε>1, 사치품)",data:[null,800,600,400,250,120,50],borderColor:"#2563EB",borderWidth:2,pointRadius:0,tension:0.3},
+      {label:"완전 탄력적 (ε=∞)",data:[400,400,400,400,400,400,400],borderColor:"#0D7C5F",borderDash:[6,4],borderWidth:2,pointRadius:0,tension:0}
+    ]},options:chartOpts("수량 (Q)","가격 (P)","수직선: 완전 비탄력적 / 수평선: 완전 탄력적\n기울기 급할수록 비탄력적 (필수품)")});
+  }
+},
+"무차별곡선":{
+  label:"무차별곡선 (Indifference Curves)",
+  build(ctx){
+    return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6","7","8"],datasets:[
+      {label:"U₁",data:[null,700,400,280,220,190,170,160,155],borderColor:"#7C3AED",borderWidth:2,pointRadius:0,tension:0.4,fill:false},
+      {label:"U₂ (효용↑)",data:[null,850,550,420,350,310,285,270,260],borderColor:"#7C3AED",borderDash:[6,4],borderWidth:2,pointRadius:0,tension:0.4,fill:false},
+      {label:"U₃ (효용↑↑)",data:[null,1000,700,560,480,430,400,380,365],borderColor:"#7C3AED",borderDash:[2,3],borderWidth:2,pointRadius:0,tension:0.4,fill:false}
+    ]},options:chartOpts("재화 X","재화 Y","우상향 이동 = 높은 효용 수준\n곡선 위의 모든 조합은 동일 효용")});
+  }
+},
+"예산제약":{
+  label:"예산제약선과 최적 소비",
+  build(ctx){
+    return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6","7","8","9","10"],datasets:[
+      {label:"예산선 (기울기 = -Px/Py)",data:[500,450,400,350,300,250,200,150,100,50,0],borderColor:"#C2410C",borderWidth:2.5,pointRadius:0,tension:0,fill:false},
+      {label:"무차별곡선 U*",data:[null,750,450,340,290,260,250,260,300,380,500],borderColor:"#7C3AED",borderWidth:2,pointRadius:0,tension:0.4,fill:false},
+      {label:"최적 소비점",data:[null,null,null,null,null,250,null,null,null,null,null],borderColor:"#C0392B",backgroundColor:"#C0392B",pointRadius:8,showLine:false,borderWidth:0}
+    ]},options:chartOpts("재화 X","재화 Y","최적 선택: 예산선과 무차별곡선의 접점\nMRS = Px/Py")});
+  }
+},
+"생산함수":{
+  label:"총생산·한계생산·평균생산",
+  build(ctx){
+    return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6","7","8","9"],datasets:[
+      {label:"총생산 (TP)",data:[0,100,220,350,460,540,590,610,600,560],borderColor:"#2563EB",borderWidth:2.5,pointRadius:2,tension:0.3,fill:false,yAxisID:"y"},
+      {label:"한계생산 (MP)",data:[null,100,120,130,110,80,50,20,-10,-40],borderColor:"#C0392B",borderWidth:2,borderDash:[6,4],pointRadius:2,tension:0.3,fill:false,yAxisID:"y2"},
+      {label:"평균생산 (AP)",data:[null,100,110,117,115,108,98,87,75,62],borderColor:"#0D7C5F",borderWidth:2,borderDash:[3,3],pointRadius:2,tension:0.3,fill:false,yAxisID:"y2"}
+    ]},options:{...chartOpts("노동 투입량 (L)","산출량","한계생산 체감의 법칙:\n노동 투입 증가 시 한계생산(MP)이 점차 감소"),scales:{x:{title:{display:true,text:"노동 투입량 (L)",font:{size:11}},grid:{display:false}},y:{position:"left",title:{display:true,text:"총생산 (TP)",font:{size:11}},grid:{color:"rgba(0,0,0,0.06)"}},y2:{position:"right",title:{display:true,text:"MP / AP",font:{size:11}},grid:{display:false}}}}});
+  }
+},
+"완전경쟁시장":{
+  label:"완전경쟁시장 이윤극대화",
+  build(ctx){
+    return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6","7","8"],datasets:[
+      {label:"P = MR = AR (시장가격)",data:[400,400,400,400,400,400,400,400,400],borderColor:"#2563EB",borderWidth:2,pointRadius:0,tension:0,fill:false},
+      {label:"MC (한계비용)",data:[null,700,400,250,200,250,350,500,700],borderColor:"#C0392B",borderWidth:2.5,pointRadius:2,tension:0.4,fill:false},
+      {label:"ATC (평균총비용)",data:[null,800,500,380,330,340,370,420,490],borderColor:"#B8860B",borderDash:[6,4],borderWidth:2,pointRadius:0,tension:0.4,fill:false}
+    ]},options:chartOpts("산출량 (Q)","가격/비용","이윤극대화: P = MR = MC\n장기균형: P = LMC = LAC (경제적 이윤 = 0)")});
+  }
+},
+"독점시장":{
+  label:"독점시장 가격 결정",
+  build(ctx){
+    return new Chart(ctx,{type:"line",data:{labels:["0","1","2","3","4","5","6","7","8"],datasets:[
+      {label:"수요곡선 D (=AR)",data:[null,800,700,600,500,400,300,200,100],borderColor:"#2563EB",borderWidth:2.5,pointRadius:0,tension:0.3,fill:false},
+      {label:"한계수입 MR",data:[null,700,500,350,200,50,-100,null,null],borderColor:"#2563EB",borderDash:[6,4],borderWidth:2,pointRadius:0,tension:0.3,fill:false},
+      {label:"한계비용 MC",data:[null,150,120,140,200,300,450,650,null],borderColor:"#C0392B",borderWidth:2.5,pointRadius:0,tension:0.4,fill:false},
+      {label:"독점가격·생산량",data:[null,null,null,600,null,null,null,null,null],borderColor:"#C0392B",backgroundColor:"#C0392B",pointRadius:8,showLine:false,borderWidth:0}
+    ]},options:chartOpts("산출량 (Q)","가격/비용","독점: MR = MC에서 생산량 결정, P > MC\n사중손실(경제적 순손실) 발생")});
+  }
+},
+"계통한계가격":{
+  label:"SMP 결정 (급전순위, Merit Order)",
+  build(ctx){
+    return new Chart(ctx,{type:"bar",data:{labels:["원자력","석탄①","석탄②","LNG-CC①","LNG-CC②","LNG-GT","유류"],datasets:[
+      {label:"변동비 (원/kWh)",data:[6,50,55,80,90,120,150],backgroundColor:["#2563EB","#0D7C5F","#0D7C5F","#B8860B","#B8860B","#C2410C","#C0392B"],borderRadius:4,barPercentage:0.7},
+      {label:"수요(SMP 결정선)",data:[null,null,null,null,90,null,null],type:"line",borderColor:"#C0392B",borderDash:[6,4],pointRadius:8,pointStyle:"crossRot",borderWidth:2,pointBorderColor:"#C0392B",fill:false}
+    ]},options:{...chartOpts("발전원 (급전순위)","변동비 (원/kWh)","한계발전기(LNG-CC②)의 변동비 = SMP\n낮은 변동비 순서로 급전 → 수요 충족 시점의 가격"),plugins:{legend:{display:true,position:"bottom",labels:{font:{size:10},boxWidth:12}}}}});
+  }
+},
+"전력수요예측":{
+  label:"전력수요 예측 (일간 부하곡선 예시)",
+  build(ctx){
+    return new Chart(ctx,{type:"line",data:{labels:["0시","2시","4시","6시","8시","10시","12시","14시","16시","18시","20시","22시","24시"],datasets:[
+      {label:"실제 수요 (MW)",data:[45000,40000,38000,42000,58000,65000,62000,64000,66000,68000,60000,52000,46000],borderColor:"#2563EB",borderWidth:2.5,pointRadius:3,tension:0.3,fill:false},
+      {label:"예측 수요",data:[44000,39500,37500,43000,57000,64000,63000,63500,65500,67000,59000,51000,45500],borderColor:"#B8860B",borderDash:[6,4],borderWidth:2,pointRadius:0,tension:0.3,fill:false},
+      {label:"기저부하 (원자력+석탄)",data:[35000,35000,35000,35000,35000,35000,35000,35000,35000,35000,35000,35000,35000],borderColor:"#0D7C5F",borderDash:[3,3],borderWidth:1.5,pointRadius:0,tension:0,fill:false}
+    ]},options:chartOpts("시간대","전력수요 (MW)","일간 부하곡선: 피크(18시경) vs 경부하(4시경)\n기저부하 위 = 중간/첨두 발전")});
+  }
+},
+"규모수익":{
+  label:"규모수익 유형별 비교",
+  build(ctx){
+    return new Chart(ctx,{type:"line",data:{labels:["1","2","3","4","5","6","7","8"],datasets:[
+      {label:"규모수익체증 (산출 > k배)",data:[100,250,450,700,1000,1350,1750,2200],borderColor:"#0D7C5F",borderWidth:2.5,pointRadius:2,tension:0.3,fill:false},
+      {label:"규모수익불변 (산출 = k배)",data:[100,200,300,400,500,600,700,800],borderColor:"#B8860B",borderWidth:2.5,pointRadius:2,tension:0,fill:false},
+      {label:"규모수익체감 (산출 < k배)",data:[100,180,245,300,345,380,410,435],borderColor:"#C0392B",borderWidth:2.5,pointRadius:2,tension:0.3,fill:false}
+    ]},options:chartOpts("투입량 (k배)","산출량","체증: 투입 k배 → 산출 > k배 (규모의 경제)\n체감: 투입 k배 → 산출 < k배 (규모의 불경제)")});
+  }
+},
+"과점시장":{
+  label:"과점시장 — 죄수의 딜레마",
+  build(ctx){
+    const cv=ctx.canvas;cv.style.display="none";
+    const wrap=cv.parentElement;
+    wrap.innerHTML=`<table class="tbl" style="margin:0 auto;max-width:320px">
+      <thead><tr><th></th><th>기업B: 협조</th><th>기업B: 배반</th></tr></thead>
+      <tbody>
+        <tr><td>기업A: 협조</td><td style="color:var(--g)">A:500, B:500</td><td style="color:var(--r)">A:100, B:800</td></tr>
+        <tr><td>기업A: 배반</td><td style="color:var(--r)">A:800, B:100</td><td style="color:var(--y)">A:300, B:300</td></tr>
+      </tbody>
+    </table><div class="chart-label">내쉬균형: (배반,배반) → 양쪽 모두 300<br>협조하면 500씩이지만 개인 이익 추구로 배반 선택</div>`;
+    return null;
+  }
+}
+};
+
+function chartOpts(xLabel,yLabel,footnote){
+  return {responsive:true,maintainAspectRatio:true,aspectRatio:1.5,
+    plugins:{legend:{display:true,position:"bottom",labels:{font:{size:10},boxWidth:12,padding:8}},
+      subtitle:{display:!!footnote,text:footnote?footnote.split("\n"):[],font:{size:10,weight:"normal"},color:"#9C8E7E",padding:{top:6}}},
+    scales:{x:{title:{display:true,text:xLabel,font:{size:11}},grid:{display:false}},
+      y:{title:{display:true,text:yLabel,font:{size:11}},grid:{color:"rgba(0,0,0,0.06)"},beginAtZero:true}}
+  };
+}
+
+function renderCharts(){
+  Object.keys(_charts).forEach(k=>{if(_charts[k]){try{_charts[k].destroy();}catch(e){}}delete _charts[k];});
+  document.querySelectorAll("canvas[data-chart]").forEach(cv=>{
+    const name=cv.dataset.chart;
+    const def=CHART_DEFS[name];
+    if(!def)return;
+    try{_charts[name]=def.build(cv.getContext("2d")||cv);}catch(e){console.warn("chart error:",name,e);}
+  });
+}
+
+function go(upd){Object.assign(S,upd);render();setTimeout(renderCharts,50);}
 function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML;}
 function nl2br(s){return esc(s).replace(/\n/g,"<br>")}
 
@@ -625,6 +798,7 @@ function termCard(k,v,open){
   </div>
   <div class="tc-short">${esc(v.s)}</div>
   ${open?`<div class="tc-detail">${linkTerms(v.f)}</div>
+  ${CHART_DEFS[k]?`<div class="chart-wrap"><canvas data-chart="${esc(k)}"></canvas></div>`:""}
   ${v.r&&v.r.length?`<div class="tc-refs"><span style="font-size:10px;color:var(--tm)">연관:</span>${v.r.map(r=>`<span class="tc-ref" onclick="event.stopPropagation();showTip('${esc(r)}')">${esc(r)}</span>`).join("")}</div>`:""}`:""}
   </div>`;
 }
@@ -832,6 +1006,7 @@ function submitQuiz(){
 }
 
 render();
+setTimeout(renderCharts,100);
 </script>
 </body>
 </html>
